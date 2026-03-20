@@ -31,13 +31,11 @@ def query_chatbot():
         }), 500
 
 @chatbot_bp.route('/topics', methods=['GET'])
-@jwt_required()
 def get_topics():
     topics = chatbot_instance.get_available_topics()
     return jsonify({'topics': topics}), 200
 
 @chatbot_bp.route('/quick-actions', methods=['GET'])
-@jwt_required()
 def get_quick_actions():
     actions = [
         {'id': 'calculate_tax', 'title': 'Calculate My Tax', 'description': 'Estimate your tax liability', 'icon': 'calculator'},

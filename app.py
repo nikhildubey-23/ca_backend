@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from datetime import timedelta
 import os
@@ -88,7 +88,14 @@ def web_admin_login():
     }), 200
 
 @app.route('/api/admin/web/stats', methods=['GET'])
+@jwt_required()
 def get_stats():
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
     total_users = User.query.filter_by(role='user').count()
     total_folders = Folder.query.count()
     total_documents = Document.query.count()
@@ -100,7 +107,14 @@ def get_stats():
     }), 200
 
 @app.route('/api/admin/web/users', methods=['GET'])
+@jwt_required()
 def get_users():
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     search = request.args.get('search', '')
@@ -123,7 +137,14 @@ def get_users():
     }), 200
 
 @app.route('/api/admin/web/users', methods=['POST'])
+@jwt_required()
 def create_user():
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
     data = request.get_json()
     
     if not data or not data.get('email') or not data.get('password') or not data.get('name'):
@@ -150,7 +171,14 @@ def create_user():
     }), 201
 
 @app.route('/api/admin/web/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
 def delete_user(user_id):
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
     user = User.query.get(user_id)
     
     if not user:
@@ -172,12 +200,25 @@ def delete_user(user_id):
     return jsonify({'message': 'User deleted successfully'}), 200
 
 @app.route('/api/admin/web/folders', methods=['GET'])
+@jwt_required()
 def get_folders():
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
     folders = Folder.query.all()
     return jsonify({'folders': [f.to_dict() for f in folders]}), 200
 
 @app.route('/api/admin/web/folders', methods=['POST'])
+@jwt_required()
 def create_folder():
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
     data = request.get_json()
     
     if not data or not data.get('name'):
@@ -198,7 +239,14 @@ def create_folder():
     }), 201
 
 @app.route('/api/admin/web/folders/<int:folder_id>', methods=['DELETE'])
+@jwt_required()
 def delete_folder(folder_id):
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
     folder = Folder.query.get(folder_id)
     
     if not folder:
@@ -216,7 +264,14 @@ def delete_folder(folder_id):
     return jsonify({'message': 'Folder deleted successfully'}), 200
 
 @app.route('/api/admin/web/documents', methods=['GET'])
+@jwt_required()
 def get_documents():
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     
@@ -237,7 +292,14 @@ def get_documents():
     }), 200
 
 @app.route('/api/admin/web/documents/upload', methods=['POST'])
+@jwt_required()
 def upload_document():
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
     
@@ -280,7 +342,14 @@ def upload_document():
     }), 201
 
 @app.route('/api/admin/web/documents/<int:doc_id>', methods=['DELETE'])
+@jwt_required()
 def delete_document(doc_id):
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = get_jwt_identity()
+    admin = User.query.get(current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
     document = Document.query.get(doc_id)
     
     if not document:
