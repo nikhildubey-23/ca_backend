@@ -9,3 +9,6 @@ requests
 werkzeug
 gunicorn
 psycopg2-binary
+boto3
+pdfplumber
+PyPDF2

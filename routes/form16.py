@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from extensions import db
 from models.document import Document
 from services.form16_extractor import Form16Extractor
+from services.r2_service import r2_service
 import os
 
 form16_bp = Blueprint('form16', __name__)
@@ -32,12 +33,19 @@ def extract_form16():
         extractor = Form16Extractor()
         extracted_data = extractor.extract(temp_path)
         
+        with open(temp_path, 'rb') as f:
+            file_content = f.read()
+        
+        r2_key = f"users/{current_user_id}/form16/{filename}"
+        r2_service.upload_file(r2_key, file_content, 'application/pdf')
+        
         document = Document(
             name=filename,
             document_type='form16',
-            file_path=temp_path,
+            file_path=r2_key,
             file_size=os.path.getsize(temp_path),
             mime_type='application/pdf',
+            r2_key=r2_key,
             folder_id=request.form.get('folder_id', type=int),
             owner_id=current_user_id,
             extracted_data=str(extracted_data)
@@ -78,11 +86,16 @@ def upload_form16():
     file_content = file.read()
     file_size = len(file_content)
     
+    r2_key = f"users/{current_user_id}/form16/{filename}"
+    r2_service.upload_file(r2_key, file_content, 'application/pdf')
+    
     document = Document(
         name=filename,
         document_type='form16',
+        file_path=r2_key,
         file_size=file_size,
         mime_type='application/pdf',
+        r2_key=r2_key,
         folder_id=folder_id,
         owner_id=current_user_id
     )
