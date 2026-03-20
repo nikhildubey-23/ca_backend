@@ -10,7 +10,8 @@ load_dotenv()
 
 from extensions import db, jwt
 
-app = Flask(__name__, template_folder='admin_panel/templates', static_folder='admin_panel/static')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'admin_panel', 'templates'), static_folder=os.path.join(BASE_DIR, 'admin_panel', 'static'))
 
 app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'taxpilot-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///taxpilot.db')
