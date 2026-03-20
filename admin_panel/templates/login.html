@@ -45,12 +45,13 @@
         <div class="text-center mt-4"><small class="text-muted">Default: admin@taxpilot.com / admin123</small></div>
     </div>
     <script>
+        const API_BASE = window.location.origin;
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
             const data = { email: form.email.value, password: form.password.value };
             try {
-                const res = await fetch('http://localhost:5000/api/admin/web/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                const res = await fetch(API_BASE + '/api/admin/web/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
                 const result = await res.json();
                 if (res.ok) { localStorage.setItem('adminToken', result.access_token); window.location.href = 'index.html'; }
                 else { document.getElementById('error-message').textContent = result.error; document.getElementById('error-message').style.display = 'block'; }
