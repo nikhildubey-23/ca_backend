@@ -79,7 +79,7 @@ def web_admin_login():
     if user.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
     
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
     
     return jsonify({
         'message': 'Login successful',
@@ -91,7 +91,7 @@ def web_admin_login():
 @jwt_required()
 def get_stats():
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
@@ -110,7 +110,7 @@ def get_stats():
 @jwt_required()
 def get_users():
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
@@ -140,7 +140,7 @@ def get_users():
 @jwt_required()
 def create_user():
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
@@ -174,7 +174,7 @@ def create_user():
 @jwt_required()
 def delete_user(user_id):
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
@@ -203,7 +203,7 @@ def delete_user(user_id):
 @jwt_required()
 def get_folders():
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
@@ -214,7 +214,7 @@ def get_folders():
 @jwt_required()
 def create_folder():
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
@@ -242,7 +242,7 @@ def create_folder():
 @jwt_required()
 def delete_folder(folder_id):
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
@@ -267,7 +267,7 @@ def delete_folder(folder_id):
 @jwt_required()
 def get_documents():
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
@@ -295,7 +295,7 @@ def get_documents():
 @jwt_required()
 def upload_document():
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
@@ -345,7 +345,7 @@ def upload_document():
 @jwt_required()
 def delete_document(doc_id):
     from flask_jwt_extended import get_jwt_identity
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     admin = User.query.get(current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
