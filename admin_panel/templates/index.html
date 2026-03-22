@@ -39,10 +39,10 @@
             <span>Admin Panel</span>
         </div>
         <div class="nav-items">
-            <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-chart-pie"></i> Dashboard</div>
-            <div class="nav-item" onclick="showSection('users')"><i class="fas fa-users"></i> Users</div>
-            <div class="nav-item" onclick="showSection('folders')"><i class="fas fa-folder"></i> Folders</div>
-            <div class="nav-item" onclick="showSection('documents')"><i class="fas fa-file-alt"></i> Documents</div>
+            <div class="nav-item active" onclick="showSection('dashboard', this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
+            <div class="nav-item" onclick="showSection('users', this)"><i class="fas fa-users"></i> Users</div>
+            <div class="nav-item" onclick="showSection('folders', this)"><i class="fas fa-folder"></i> Folders</div>
+            <div class="nav-item" onclick="showSection('documents', this)"><i class="fas fa-file-alt"></i> Documents</div>
         </div>
     </div>
 
@@ -179,12 +179,24 @@
         const apiBase = window.location.origin + '/api/admin/web';
         let token = localStorage.getItem('adminToken');
 
-        function checkAuth() { if (!token) window.location.href = 'login.html'; }
-        function logout() { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+        function checkAuth() { 
+            if (!token) { 
+                window.location.href = 'login.html'; 
+                return false;
+            }
+            return true;
+        }
+        
+        function logout() { 
+            localStorage.removeItem('adminToken'); 
+            window.location.href = 'login.html'; 
+        }
 
-        function showSection(section) {
+        function showSection(section, navElement) {
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            event.target.closest('.nav-item').classList.add('active');
+            if (navElement && navElement.closest('.nav-item')) {
+                navElement.closest('.nav-item').classList.add('active');
+            }
             ['dashboard', 'users', 'folders', 'documents'].forEach(s => document.getElementById(s + '-section').style.display = 'none');
             document.getElementById(section + '-section').style.display = 'block';
             if (section === 'users') loadUsers();
@@ -194,74 +206,148 @@
 
         async function loadStats() {
             try {
-                const res = await fetch(`${apiBase}/stats`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetch(`${apiBase}/stats`, { 
+                    headers: { 'Authorization': `Bearer ${token}` } 
+                });
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 422) {
+                        logout();
+                        return;
+                    }
+                    throw new Error('Failed to load stats');
+                }
                 const data = await res.json();
-                document.getElementById('total-users').textContent = data.total_users;
-                document.getElementById('total-folders').textContent = data.total_folders;
-                document.getElementById('total-documents').textContent = data.total_documents;
-            } catch (err) { console.error('Error:', err); }
+                document.getElementById('total-users').textContent = data.total_users || 0;
+                document.getElementById('total-folders').textContent = data.total_folders || 0;
+                document.getElementById('total-documents').textContent = data.total_documents || 0;
+            } catch (err) { 
+                console.error('Error loading stats:', err); 
+            }
         }
 
-        async function loadUsers() {
+        async function loadUsers(search = '') {
             try {
-                const res = await fetch(`${apiBase}/users`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const url = search ? `${apiBase}/users?search=${encodeURIComponent(search)}` : `${apiBase}/users`;
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 422) {
+                        logout();
+                        return;
+                    }
+                    throw new Error('Failed to load users');
+                }
                 const data = await res.json();
-                document.getElementById('users-table-body').innerHTML = data.users.map(u => `
-                    <tr>
-                        <td><strong>${u.name}</strong></td>
-                        <td>${u.email}</td>
-                        <td><code>${u.pan || '-'}</code></td>
-                        <td>${u.phone || '-'}</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `).join('');
-            } catch (err) { console.error('Error:', err); }
+                const users = data.users || [];
+                if (users.length === 0) {
+                    document.getElementById('users-table-body').innerHTML = '<tr><td colspan="5" class="text-center text-muted">No users found</td></tr>';
+                } else {
+                    document.getElementById('users-table-body').innerHTML = users.map(u => `
+                        <tr>
+                            <td><strong>${escapeHtml(u.name || '')}</strong></td>
+                            <td>${escapeHtml(u.email || '')}</td>
+                            <td><code>${escapeHtml(u.pan || '-')}</code></td>
+                            <td>${escapeHtml(u.phone || '-')}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) { 
+                console.error('Error loading users:', err); 
+                document.getElementById('users-table-body').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading users</td></tr>';
+            }
         }
 
         async function loadFolders() {
             try {
                 const res = await fetch(`${apiBase}/folders`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 422) {
+                        logout();
+                        return;
+                    }
+                    throw new Error('Failed to load folders');
+                }
                 const data = await res.json();
-                document.getElementById('folders-table-body').innerHTML = data.folders.map(f => `
-                    <tr>
-                        <td><i class="fas fa-folder text-warning me-2"></i><strong>${f.name}</strong></td>
-                        <td>${f.description || '-'}</td>
-                        <td>${f.document_count || 0}</td>
-                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteFolder(${f.id})"><i class="fas fa-trash"></i></button></td>
-                    </tr>
-                `).join('');
-            } catch (err) { console.error('Error:', err); }
+                const folders = data.folders || [];
+                if (folders.length === 0) {
+                    document.getElementById('folders-table-body').innerHTML = '<tr><td colspan="4" class="text-center text-muted">No folders found</td></tr>';
+                } else {
+                    document.getElementById('folders-table-body').innerHTML = folders.map(f => `
+                        <tr>
+                            <td><i class="fas fa-folder text-warning me-2"></i><strong>${escapeHtml(f.name || '')}</strong></td>
+                            <td>${escapeHtml(f.description || '-')}</td>
+                            <td>${f.document_count || 0}</td>
+                            <td><button class="btn btn-sm btn-outline-danger" onclick="deleteFolder(${f.id})"><i class="fas fa-trash"></i></button></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) { 
+                console.error('Error loading folders:', err); 
+                document.getElementById('folders-table-body').innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading folders</td></tr>';
+            }
         }
 
         async function loadDocuments() {
             try {
                 const res = await fetch(`${apiBase}/documents`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 422) {
+                        logout();
+                        return;
+                    }
+                    throw new Error('Failed to load documents');
+                }
                 const data = await res.json();
-                document.getElementById('documents-table-body').innerHTML = data.documents.map(d => `
-                    <tr>
-                        <td><i class="fas fa-file-pdf text-danger me-2"></i>${d.name}</td>
-                        <td><span class="badge bg-secondary">${d.document_type}</span></td>
-                        <td>${d.owner_name}</td>
-                        <td><button class="btn btn-sm btn-outline-danger" onclick="deleteDocument(${d.id})"><i class="fas fa-trash"></i></button></td>
-                    </tr>
-                `).join('');
-            } catch (err) { console.error('Error:', err); }
+                const documents = data.documents || [];
+                if (documents.length === 0) {
+                    document.getElementById('documents-table-body').innerHTML = '<tr><td colspan="4" class="text-center text-muted">No documents found</td></tr>';
+                } else {
+                    document.getElementById('documents-table-body').innerHTML = documents.map(d => `
+                        <tr>
+                            <td><i class="fas fa-file-pdf text-danger me-2"></i>${escapeHtml(d.name || '')}</td>
+                            <td><span class="badge bg-secondary">${escapeHtml(d.document_type || 'other')}</span></td>
+                            <td>${escapeHtml(d.owner_name || 'Unknown')}</td>
+                            <td><button class="btn btn-sm btn-outline-danger" onclick="deleteDocument(${d.id})"><i class="fas fa-trash"></i></button></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) { 
+                console.error('Error loading documents:', err); 
+                document.getElementById('documents-table-body').innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading documents</td></tr>';
+            }
         }
 
         async function loadDropdowns() {
             try {
                 const usersRes = await fetch(`${apiBase}/users?per_page=100`, { headers: { 'Authorization': `Bearer ${token}` } });
-                const usersData = await usersRes.json();
-                document.querySelector('#uploadDocumentForm select[name="owner_id"]').innerHTML = '<option value="">Select User</option>' + 
-                    usersData.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+                if (usersRes.ok) {
+                    const usersData = await usersRes.json();
+                    const users = usersData.users || [];
+                    document.querySelector('#uploadDocumentForm select[name="owner_id"]').innerHTML = '<option value="">Select User</option>' + 
+                        users.map(u => `<option value="${u.id}">${escapeHtml(u.name || u.email)}</option>`).join('');
+                }
 
                 const foldersRes = await fetch(`${apiBase}/folders`, { headers: { 'Authorization': `Bearer ${token}` } });
-                const foldersData = await foldersRes.json();
-                document.querySelector('#uploadDocumentForm select[name="folder_id"]').innerHTML = '<option value="">No Folder</option>' + 
-                    foldersData.folders.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
-            } catch (err) { console.error('Error:', err); }
+                if (foldersRes.ok) {
+                    const foldersData = await foldersRes.json();
+                    const folders = foldersData.folders || [];
+                    document.querySelector('#uploadDocumentForm select[name="folder_id"]').innerHTML = '<option value="">No Folder</option>' + 
+                        folders.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+                }
+            } catch (err) { console.error('Error loading dropdowns:', err); }
+        }
+
+        function searchUsers() {
+            const searchTerm = document.getElementById('user-search').value;
+            loadUsers(searchTerm);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         async function addUser() {
@@ -269,8 +355,20 @@
             const formData = new FormData(form);
             const data = Object.fromEntries(formData);
             try {
-                const res = await fetch(`${apiBase}/users`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
-                if (res.ok) { bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide(); form.reset(); loadUsers(); loadStats(); }
+                const res = await fetch(`${apiBase}/users`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+                    body: JSON.stringify(data) 
+                });
+                if (res.ok) { 
+                    bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide(); 
+                    form.reset(); 
+                    loadUsers(); 
+                    loadStats(); 
+                } else {
+                    const error = await res.json();
+                    alert('Error: ' + (error.error || 'Failed to add user'));
+                }
             } catch (err) { alert('Error adding user'); }
         }
 
@@ -279,8 +377,20 @@
             const formData = new FormData(form);
             const data = Object.fromEntries(formData);
             try {
-                const res = await fetch(`${apiBase}/folders`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
-                if (res.ok) { bootstrap.Modal.getInstance(document.getElementById('addFolderModal')).hide(); form.reset(); loadFolders(); loadStats(); }
+                const res = await fetch(`${apiBase}/folders`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
+                    body: JSON.stringify(data) 
+                });
+                if (res.ok) { 
+                    bootstrap.Modal.getInstance(document.getElementById('addFolderModal')).hide(); 
+                    form.reset(); 
+                    loadFolders(); 
+                    loadStats(); 
+                } else {
+                    const error = await res.json();
+                    alert('Error: ' + (error.error || 'Failed to create folder'));
+                }
             } catch (err) { alert('Error creating folder'); }
         }
 
@@ -288,17 +398,50 @@
             const form = document.getElementById('uploadDocumentForm');
             const formData = new FormData(form);
             try {
-                const res = await fetch(`${apiBase}/documents/upload`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
-                if (res.ok) { bootstrap.Modal.getInstance(document.getElementById('uploadDocumentModal')).hide(); form.reset(); loadDocuments(); loadStats(); }
+                const res = await fetch(`${apiBase}/documents/upload`, { 
+                    method: 'POST', 
+                    headers: { 'Authorization': `Bearer ${token}` }, 
+                    body: formData 
+                });
+                if (res.ok) { 
+                    bootstrap.Modal.getInstance(document.getElementById('uploadDocumentModal')).hide(); 
+                    form.reset(); 
+                    loadDocuments(); 
+                    loadStats(); 
+                } else {
+                    const error = await res.json();
+                    alert('Error: ' + (error.error || 'Failed to upload document'));
+                }
             } catch (err) { alert('Error uploading document'); }
         }
 
-        async function deleteUser(id) { if (confirm('Delete this user?')) { await fetch(`${apiBase}/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); loadUsers(); loadStats(); } }
-        async function deleteFolder(id) { if (confirm('Delete this folder?')) { await fetch(`${apiBase}/folders/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); loadFolders(); loadStats(); } }
-        async function deleteDocument(id) { if (confirm('Delete this document?')) { await fetch(`${apiBase}/documents/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); loadDocuments(); loadStats(); } }
+        async function deleteUser(id) { 
+            if (confirm('Delete this user?')) { 
+                const res = await fetch(`${apiBase}/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); 
+                loadUsers(); 
+                loadStats(); 
+            } 
+        }
+        
+        async function deleteFolder(id) { 
+            if (confirm('Delete this folder?')) { 
+                await fetch(`${apiBase}/folders/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); 
+                loadFolders(); 
+                loadStats(); 
+            } 
+        }
+        
+        async function deleteDocument(id) { 
+            if (confirm('Delete this document?')) { 
+                await fetch(`${apiBase}/documents/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); 
+                loadDocuments(); 
+                loadStats(); 
+            } 
+        }
 
-        checkAuth();
-        loadStats();
+        if (checkAuth()) {
+            loadStats();
+        }
     </script>
 </body>
 </html>
