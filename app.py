@@ -33,6 +33,7 @@ from routes.tax import tax_bp
 from routes.form16 import form16_bp
 from routes.chatbot import chatbot_bp
 from routes.admin import admin_bp
+from routes.contact import contact_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(profile_bp, url_prefix='/api/profile')
@@ -42,10 +43,12 @@ app.register_blueprint(tax_bp, url_prefix='/api/tax')
 app.register_blueprint(form16_bp, url_prefix='/api/form16')
 app.register_blueprint(chatbot_bp, url_prefix='/api/chatbot')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
+app.register_blueprint(contact_bp, url_prefix='/api/contact')
 
 from models.user import User
 from models.folder import Folder
 from models.document import Document
+from models.user_folder_allocation import UserFolderAllocation
 from services.r2_service import r2_service
 
 @app.route('/')
@@ -379,7 +382,7 @@ with app.app_context():
 
 if __name__ == '__main__':
     print("\n========================================")
-    print("TaxPilot Pro Backend Server")
+    print("My CA App Backend Server")
     print("========================================")
     print("API Server: http://localhost:5000")
     print("Admin Panel: http://localhost:5000/admin/login")

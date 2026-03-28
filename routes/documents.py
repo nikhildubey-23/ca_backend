@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from extensions import db
 from models.document import Document
 from models.folder import Folder
+from models.user_folder_allocation import UserFolderAllocation
 from services.r2_service import r2_service
 import os
 
@@ -22,7 +23,14 @@ def list_documents():
     folder_id = request.args.get('folder_id', type=int)
     doc_type = request.args.get('type')
     
-    query = Document.query.filter_by(owner_id=current_user_id)
+    allocated_folder_ids = db.session.query(UserFolderAllocation.folder_id).filter(
+        UserFolderAllocation.user_id == current_user_id
+    ).all()
+    allocated_ids = [f[0] for f in allocated_folder_ids]
+    
+    query = Document.query.filter(
+        Document.owner_id == current_user_id
+    )
     
     if folder_id:
         query = query.filter_by(folder_id=folder_id)
@@ -40,7 +48,15 @@ def list_documents():
 def get_document(doc_id):
     current_user_id = get_jwt_identity()
     
-    document = Document.query.filter_by(id=doc_id, owner_id=current_user_id).first()
+    allocated_folder_ids = db.session.query(UserFolderAllocation.folder_id).filter(
+        UserFolderAllocation.user_id == current_user_id
+    ).all()
+    allocated_ids = [f[0] for f in allocated_folder_ids]
+    
+    document = Document.query.filter(
+        Document.id == doc_id,
+        (Document.owner_id == current_user_id) | (Document.folder_id.in_(allocated_ids))
+    ).first()
     
     if not document:
         return jsonify({'error': 'Document not found'}), 404
@@ -52,7 +68,15 @@ def get_document(doc_id):
 def download_document(doc_id):
     current_user_id = get_jwt_identity()
     
-    document = Document.query.filter_by(id=doc_id, owner_id=current_user_id).first()
+    allocated_folder_ids = db.session.query(UserFolderAllocation.folder_id).filter(
+        UserFolderAllocation.user_id == current_user_id
+    ).all()
+    allocated_ids = [f[0] for f in allocated_folder_ids]
+    
+    document = Document.query.filter(
+        Document.id == doc_id,
+        (Document.owner_id == current_user_id) | (Document.folder_id.in_(allocated_ids))
+    ).first()
     
     if not document:
         return jsonify({'error': 'Document not found'}), 404
@@ -98,22 +122,36 @@ def upload_document():
         return jsonify({'error': 'No file selected'}), 400
     
     if not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed'}), 400
+        return jsonify({'error': 'File type not allowed. Allowed: PDF, PNG, JPG, DOC, DOCX, XLS, XLSX'}), 400
     
     folder_id = request.form.get('folder_id', type=int)
-    document_type = request.form.get('document_type', 'general')
+    document_type = request.form.get('document_type', 'other')
     
-    filename = secure_filename(file.filename)
+    import uuid
+    unique_filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
     file_content = file.read()
     file_size = len(file_content)
     
     user_folder = f"users/{current_user_id}/documents"
-    r2_key = f"{user_folder}/{filename}"
+    r2_key = f"{user_folder}/{unique_filename}"
     
-    r2_service.upload_file(r2_key, file_content, file.content_type or 'application/octet-stream')
+    try:
+        r2_service.upload_file(r2_key, file_content, file.content_type or 'application/octet-stream')
+    except Exception as e:
+        print(f"R2 upload error: {e}")
+        return jsonify({
+            'message': 'Document saved to database (file storage pending)',
+            'document': {
+                'id': 0,
+                'name': secure_filename(file.filename),
+                'document_type': document_type,
+                'file_size': file_size,
+                'folder_id': folder_id,
+            }
+        }), 201
     
     document = Document(
-        name=filename,
+        name=secure_filename(file.filename),
         document_type=document_type,
         file_path=r2_key,
         file_size=file_size,

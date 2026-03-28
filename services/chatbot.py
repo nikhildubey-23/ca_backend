@@ -19,7 +19,7 @@ def strip_markdown(text):
     return text
 
 class TaxChatbot:
-    SYSTEM_PROMPT = """You are TaxPilot Pro's AI assistant, specialized in Indian income tax. You help users with:
+    SYSTEM_PROMPT = """You are My CA App's AI assistant, specialized in Indian income tax. You help users with:
 - Tax calculations and estimations
 - Tax saving suggestions (Section 80C, 80D, 80G, HRA, NPS, etc.)
 - ITR filing guidance
@@ -67,7 +67,7 @@ Key Deductions:
             'greeting': {
                 'patterns': ['hi', 'hello', 'hey', 'good morning', 'good evening'],
                 'responses': [
-                    'Hello! Welcome to TaxPilot Pro. How can I help you with your taxes today?',
+                    'Hello! Welcome to My CA App. How can I help you with your taxes today?',
                     'Hi there! I\'m here to help you with tax-related queries. What would you like to know?',
                     'Hello! Ready to assist you with tax calculations, ITR filing, or document management?'
                 ]
@@ -118,7 +118,7 @@ Key Deductions:
             'goodbye': {
                 'patterns': ['bye', 'goodbye', 'thanks', 'thank you', 'that\'s all'],
                 'responses': [
-                    'Thank you for using TaxPilot Pro! Have a great day! Feel free to return if you have more questions.',
+                    'Thank you for using My CA App! Have a great day! Feel free to return if you have more questions.',
                     'Bye! Happy tax planning! Remember to file your ITR before the deadline.'
                 ]
             }

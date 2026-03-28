@@ -9,17 +9,26 @@ auth_bp = Blueprint('auth', __name__)
 def register():
     data = request.get_json()
     
-    if not data or not data.get('email') or not data.get('password') or not data.get('name'):
-        return jsonify({'error': 'Email, password, and name are required'}), 400
+    if not data or not data.get('password') or not data.get('name'):
+        return jsonify({'error': 'Password and name are required'}), 400
     
-    if User.query.filter_by(email=data['email']).first():
+    email = data.get('email', '').strip()
+    phone = data.get('phone', '').strip()
+    
+    if not email and not phone:
+        return jsonify({'error': 'Either email or phone number is required'}), 400
+    
+    if email and User.query.filter_by(email=email).first():
         return jsonify({'error': 'Email already registered'}), 400
     
+    if phone and User.query.filter_by(phone=phone).first():
+        return jsonify({'error': 'Phone number already registered'}), 400
+    
     user = User(
-        email=data['email'],
+        email=email if email else None,
         name=data['name'],
         pan=data.get('pan'),
-        phone=data.get('phone'),
+        phone=phone if phone else None,
         role='user'
     )
     user.set_password(data['password'])
@@ -41,13 +50,22 @@ def register():
 def login():
     data = request.get_json()
     
-    if not data or not data.get('email') or not data.get('password'):
-        return jsonify({'error': 'Email and password are required'}), 400
+    if not data or not data.get('password'):
+        return jsonify({'error': 'Password is required'}), 400
     
-    user = User.query.filter_by(email=data['email']).first()
+    identifier = (data.get('email') or data.get('phone') or '').strip()
+    
+    if not identifier:
+        return jsonify({'error': 'Email or phone number is required'}), 400
+    
+    user = None
+    if '@' in identifier:
+        user = User.query.filter_by(email=identifier).first()
+    else:
+        user = User.query.filter_by(phone=identifier).first()
     
     if not user or not user.check_password(data['password']):
-        return jsonify({'error': 'Invalid email or password'}), 401
+        return jsonify({'error': 'Invalid credentials'}), 401
     
     access_token = create_access_token(identity=str(user.id))
     refresh_token = create_refresh_token(identity=str(user.id))

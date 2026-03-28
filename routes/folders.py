@@ -4,6 +4,7 @@ from extensions import db
 from models.folder import Folder
 from models.document import Document
 from models.user import User
+from models.user_folder_allocation import UserFolderAllocation
 
 folders_bp = Blueprint('folders', __name__)
 
@@ -12,8 +13,13 @@ folders_bp = Blueprint('folders', __name__)
 def list_folders():
     current_user_id = get_jwt_identity()
     
+    allocated_folder_ids = db.session.query(UserFolderAllocation.folder_id).filter(
+        UserFolderAllocation.user_id == current_user_id
+    ).all()
+    allocated_ids = [f[0] for f in allocated_folder_ids]
+    
     folders = Folder.query.filter(
-        (Folder.owner_id == current_user_id) | (Folder.is_shared == True)
+        (Folder.owner_id == current_user_id) | (Folder.id.in_(allocated_ids))
     ).all()
     
     return jsonify({
@@ -25,9 +31,14 @@ def list_folders():
 def get_folder(folder_id):
     current_user_id = get_jwt_identity()
     
+    allocated_folder_ids = db.session.query(UserFolderAllocation.folder_id).filter(
+        UserFolderAllocation.user_id == current_user_id
+    ).all()
+    allocated_ids = [f[0] for f in allocated_folder_ids]
+    
     folder = Folder.query.filter(
         Folder.id == folder_id,
-        (Folder.owner_id == current_user_id) | (Folder.is_shared == True)
+        (Folder.owner_id == current_user_id) | (Folder.id.in_(allocated_ids))
     ).first()
     
     if not folder:
@@ -40,9 +51,14 @@ def get_folder(folder_id):
 def get_folder_documents(folder_id):
     current_user_id = get_jwt_identity()
     
+    allocated_folder_ids = db.session.query(UserFolderAllocation.folder_id).filter(
+        UserFolderAllocation.user_id == current_user_id
+    ).all()
+    allocated_ids = [f[0] for f in allocated_folder_ids]
+    
     folder = Folder.query.filter(
         Folder.id == folder_id,
-        (Folder.owner_id == current_user_id) | (Folder.is_shared == True)
+        (Folder.owner_id == current_user_id) | (Folder.id.in_(allocated_ids))
     ).first()
     
     if not folder:
@@ -114,6 +130,10 @@ def delete_folder(folder_id):
     
     if not folder:
         return jsonify({'error': 'Folder not found'}), 404
+    
+    allocations = UserFolderAllocation.query.filter_by(folder_id=folder_id).all()
+    for alloc in allocations:
+        db.session.delete(alloc)
     
     documents = Document.query.filter_by(folder_id=folder_id).all()
     for doc in documents:
