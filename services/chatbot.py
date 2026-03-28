@@ -1,8 +1,22 @@
 import requests
 import os
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+def strip_markdown(text):
+    """Remove markdown formatting from text for clean display"""
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+    text = re.sub(r'\*([^*]+)\*', r'\1', text)
+    text = re.sub(r'__([^_]+)__', r'\1', text)
+    text = re.sub(r'_([^_]+)_', r'\1', text)
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    text = re.sub(r'^\s*[-*]\s+', '• ', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*(\d+)\.\s+', r'\1. ', text, flags=re.MULTILINE)
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    return text
 
 class TaxChatbot:
     SYSTEM_PROMPT = """You are TaxPilot Pro's AI assistant, specialized in Indian income tax. You help users with:
@@ -15,6 +29,8 @@ class TaxChatbot:
 - Document requirements for tax filing
 
 Always be helpful, accurate, and concise. If you're unsure about something, say so.
+
+IMPORTANT: Always respond in plain text without using markdown formatting. Do NOT use asterisks (*), bold, italic, or any markdown symbols. Use simple bullet points with • symbol if needed.
 Current Financial Year: FY 2024-25 (AY 2025-26)
 
 Tax Slabs - New Regime (FY 2024-25):
@@ -66,7 +82,7 @@ Key Deductions:
             'tax_slabs': {
                 'patterns': ['tax slabs', 'tax rates', 'slab rates', 'income tax rates'],
                 'responses': [
-                    'Here are the current Indian tax slabs:\n\nNew Tax Regime:\n• Up to ₹3 Lakh: 0%\n• ₹3-6 Lakh: 5%\n• ₹6-9 Lakh: 10%\n• ₹9-12 Lakh: 15%\n• ₹12-15 Lakh: 20%\n• Above ₹15 Lakh: 30%\n\nCess of 4% applies on calculated tax.'
+                    'Here are the current Indian tax slabs:\n\nNew Tax Regime:\n- Up to ₹3 Lakh: 0%\n- ₹3-6 Lakh: 5%\n- ₹6-9 Lakh: 10%\n- ₹9-12 Lakh: 15%\n- ₹12-15 Lakh: 20%\n- Above ₹15 Lakh: 30%\n\nCess of 4% applies on calculated tax.'
                 ]
             },
             'section_80c': {
@@ -143,7 +159,8 @@ Key Deductions:
             response = requests.post(url, headers=headers, json=payload, timeout=30)
             response.raise_for_status()
             data = response.json()
-            return data['choices'][0]['message']['content']
+            raw_response = data['choices'][0]['message']['content']
+            return strip_markdown(raw_response)
         except requests.exceptions.RequestException as e:
             print(f"Groq API error: {e}")
             return None

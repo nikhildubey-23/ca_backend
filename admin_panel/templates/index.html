@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TaxPilot Pro - Admin Panel</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -179,6 +179,19 @@
         const apiBase = window.location.origin + '/api/admin/web';
         let token = localStorage.getItem('adminToken');
 
+        async function fetchWithRetry(url, options, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url, options);
+                    return res;
+                } catch (err) {
+                    console.log(`Attempt ${i + 1} failed:`, err.message);
+                    if (i === retries - 1) throw err;
+                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+                }
+            }
+        }
+
         function checkAuth() { 
             if (!token) { 
                 window.location.href = 'login.html'; 
@@ -206,7 +219,7 @@
 
         async function loadStats() {
             try {
-                const res = await fetch(`${apiBase}/stats`, { 
+                const res = await fetchWithRetry(`${apiBase}/stats`, { 
                     headers: { 'Authorization': `Bearer ${token}` } 
                 });
                 if (!res.ok) {
@@ -222,13 +235,16 @@
                 document.getElementById('total-documents').textContent = data.total_documents || 0;
             } catch (err) { 
                 console.error('Error loading stats:', err); 
+                document.getElementById('total-users').textContent = '!';
+                document.getElementById('total-folders').textContent = '!';
+                document.getElementById('total-documents').textContent = '!';
             }
         }
 
         async function loadUsers(search = '') {
             try {
                 const url = search ? `${apiBase}/users?search=${encodeURIComponent(search)}` : `${apiBase}/users`;
-                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetchWithRetry(url, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!res.ok) {
                     if (res.status === 401 || res.status === 422) {
                         logout();
@@ -255,13 +271,13 @@
                 }
             } catch (err) { 
                 console.error('Error loading users:', err); 
-                document.getElementById('users-table-body').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading users</td></tr>';
+                document.getElementById('users-table-body').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Connection error - please refresh</td></tr>';
             }
         }
 
         async function loadFolders() {
             try {
-                const res = await fetch(`${apiBase}/folders`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetchWithRetry(`${apiBase}/folders`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!res.ok) {
                     if (res.status === 401 || res.status === 422) {
                         logout();
@@ -285,13 +301,13 @@
                 }
             } catch (err) { 
                 console.error('Error loading folders:', err); 
-                document.getElementById('folders-table-body').innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading folders</td></tr>';
+                document.getElementById('folders-table-body').innerHTML = '<tr><td colspan="4" class="text-center text-danger">Connection error - please refresh</td></tr>';
             }
         }
 
         async function loadDocuments() {
             try {
-                const res = await fetch(`${apiBase}/documents`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetchWithRetry(`${apiBase}/documents`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!res.ok) {
                     if (res.status === 401 || res.status === 422) {
                         logout();
@@ -315,13 +331,13 @@
                 }
             } catch (err) { 
                 console.error('Error loading documents:', err); 
-                document.getElementById('documents-table-body').innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading documents</td></tr>';
+                document.getElementById('documents-table-body').innerHTML = '<tr><td colspan="4" class="text-center text-danger">Connection error - please refresh</td></tr>';
             }
         }
 
         async function loadDropdowns() {
             try {
-                const usersRes = await fetch(`${apiBase}/users?per_page=100`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const usersRes = await fetchWithRetry(`${apiBase}/users?per_page=100`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (usersRes.ok) {
                     const usersData = await usersRes.json();
                     const users = usersData.users || [];
@@ -329,7 +345,7 @@
                         users.map(u => `<option value="${u.id}">${escapeHtml(u.name || u.email)}</option>`).join('');
                 }
 
-                const foldersRes = await fetch(`${apiBase}/folders`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const foldersRes = await fetchWithRetry(`${apiBase}/folders`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (foldersRes.ok) {
                     const foldersData = await foldersRes.json();
                     const folders = foldersData.folders || [];
