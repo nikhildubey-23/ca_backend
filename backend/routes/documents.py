@@ -23,13 +23,16 @@ def list_documents():
     folder_id = request.args.get('folder_id', type=int)
     doc_type = request.args.get('type')
     
+    # Get folders allocated to this user
     allocated_folder_ids = db.session.query(UserFolderAllocation.folder_id).filter(
         UserFolderAllocation.user_id == current_user_id
     ).all()
     allocated_ids = [f[0] for f in allocated_folder_ids]
     
+    # Get documents: own documents OR documents in allocated folders
     query = Document.query.filter(
-        Document.owner_id == current_user_id
+        (Document.owner_id == current_user_id) | 
+        (Document.folder_id.in_(allocated_ids))
     )
     
     if folder_id:
