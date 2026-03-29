@@ -187,29 +187,39 @@ def delete_user(user_id):
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    documents = Document.query.filter_by(owner_id=user_id).all()
-    for doc in documents:
-        if doc.r2_key:
-            r2_service.delete_file(doc.r2_key)
-        db.session.delete(doc)
-    
-    folders = Folder.query.filter_by(owner_id=user_id).all()
-    for folder in folders:
-        docs = Document.query.filter_by(folder_id=folder.id).all()
-        for doc in docs:
+    try:
+        documents = Document.query.filter_by(owner_id=user_id).all()
+        for doc in documents:
             if doc.r2_key:
-                r2_service.delete_file(doc.r2_key)
+                try:
+                    r2_service.delete_file(doc.r2_key)
+                except:
+                    pass
             db.session.delete(doc)
-        db.session.delete(folder)
-    
-    allocations = UserFolderAllocation.query.filter_by(user_id=user_id).all()
-    for allocation in allocations:
-        db.session.delete(allocation)
-    
-    db.session.delete(user)
-    db.session.commit()
-    
-    return jsonify({'message': 'User deleted successfully'}), 200
+        
+        folders = Folder.query.filter_by(owner_id=user_id).all()
+        for folder in folders:
+            docs = Document.query.filter_by(folder_id=folder.id).all()
+            for doc in docs:
+                if doc.r2_key:
+                    try:
+                        r2_service.delete_file(doc.r2_key)
+                    except:
+                        pass
+                db.session.delete(doc)
+            db.session.delete(folder)
+        
+        allocations = UserFolderAllocation.query.filter_by(user_id=user_id).all()
+        for allocation in allocations:
+            db.session.delete(allocation)
+        
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({'message': 'User deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/web/users/<int:user_id>/allocate-folders', methods=['POST'])
 @jwt_required()
@@ -298,20 +308,27 @@ def delete_folder(folder_id):
     if not folder:
         return jsonify({'error': 'Folder not found'}), 404
     
-    documents = Document.query.filter_by(folder_id=folder_id).all()
-    for doc in documents:
-        if doc.r2_key:
-            r2_service.delete_file(doc.r2_key)
-        db.session.delete(doc)
-    
-    allocations = UserFolderAllocation.query.filter_by(folder_id=folder_id).all()
-    for allocation in allocations:
-        db.session.delete(allocation)
-    
-    db.session.delete(folder)
-    db.session.commit()
-    
-    return jsonify({'message': 'Folder deleted successfully'}), 200
+    try:
+        documents = Document.query.filter_by(folder_id=folder_id).all()
+        for doc in documents:
+            if doc.r2_key:
+                try:
+                    r2_service.delete_file(doc.r2_key)
+                except:
+                    pass
+            db.session.delete(doc)
+        
+        allocations = UserFolderAllocation.query.filter_by(folder_id=folder_id).all()
+        for allocation in allocations:
+            db.session.delete(allocation)
+        
+        db.session.delete(folder)
+        db.session.commit()
+        
+        return jsonify({'message': 'Folder deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/web/documents', methods=['GET'])
 @jwt_required()
@@ -405,13 +422,20 @@ def delete_document(doc_id):
     if not document:
         return jsonify({'error': 'Document not found'}), 404
     
-    if document.r2_key:
-        r2_service.delete_file(document.r2_key)
-    
-    db.session.delete(document)
-    db.session.commit()
-    
-    return jsonify({'message': 'Document deleted successfully'}), 200
+    try:
+        if document.r2_key:
+            try:
+                r2_service.delete_file(document.r2_key)
+            except:
+                pass
+        
+        db.session.delete(document)
+        db.session.commit()
+        
+        return jsonify({'message': 'Document deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 with app.app_context():
     db.create_all()
