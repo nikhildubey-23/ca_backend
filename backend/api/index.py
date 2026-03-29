@@ -1,13 +1,14 @@
 import sys
 import os
 
-# Add backend directory to path
+# Set up paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
+# Go up from api/ to backend/, then up to root
+backend_dir = os.path.dirname(current_dir)
+root_dir = os.path.dirname(backend_dir)
 
-# Change working directory
-os.chdir(parent_dir)
+sys.path.insert(0, backend_dir)
+os.chdir(backend_dir)
 
 from app import app as application
 
