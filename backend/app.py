@@ -178,40 +178,27 @@ def create_user():
 def delete_user(user_id):
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
         
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
     try:
-        documents = Document.query.filter_by(owner_id=user_id).all()
-        for doc in documents:
-            if doc.r2_key:
-                try:
-                    r2_service.delete_file(doc.r2_key)
-                except:
-                    pass
-            db.session.delete(doc)
+        # Delete documents owned by user
+        Document.query.filter_by(owner_id=user_id).delete(synchronize_session=False)
         
-        folders = Folder.query.filter_by(owner_id=user_id).all()
-        for folder in folders:
-            docs = Document.query.filter_by(folder_id=folder.id).all()
-            for doc in docs:
-                if doc.r2_key:
-                    try:
-                        r2_service.delete_file(doc.r2_key)
-                    except:
-                        pass
-                db.session.delete(doc)
+        # Delete folders owned by user (with their documents)
+        user_folders = Folder.query.filter_by(owner_id=user_id).all()
+        for folder in user_folders:
+            Document.query.filter_by(folder_id=folder.id).delete(synchronize_session=False)
             db.session.delete(folder)
         
-        allocations = UserFolderAllocation.query.filter_by(user_id=user_id).all()
-        for allocation in allocations:
-            db.session.delete(allocation)
+        # Delete folder allocations
+        UserFolderAllocation.query.filter_by(user_id=user_id).delete(synchronize_session=False)
         
         db.session.delete(user)
         db.session.commit()
