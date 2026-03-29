@@ -95,7 +95,7 @@ def web_admin_login():
 def get_stats():
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
         
@@ -114,7 +114,7 @@ def get_stats():
 def get_users():
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
         
@@ -144,7 +144,7 @@ def get_users():
 def create_user():
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
         
@@ -213,11 +213,11 @@ def delete_user(user_id):
 def allocate_folders_to_user(user_id):
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
     
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
@@ -227,7 +227,7 @@ def allocate_folders_to_user(user_id):
     UserFolderAllocation.query.filter_by(user_id=user_id).delete()
     
     for folder_id in folder_ids:
-        folder = Folder.query.get(folder_id)
+        folder = db.session.get(Folder, folder_id)
         if folder:
             allocation = UserFolderAllocation(
                 user_id=user_id,
@@ -247,7 +247,7 @@ def allocate_folders_to_user(user_id):
 def get_folders():
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
     folders = Folder.query.all()
@@ -258,7 +258,7 @@ def get_folders():
 def create_folder():
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
         
@@ -286,11 +286,11 @@ def create_folder():
 def delete_folder(folder_id):
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
         
-    folder = Folder.query.get(folder_id)
+    folder = db.session.get(Folder, folder_id)
     
     if not folder:
         return jsonify({'error': 'Folder not found'}), 404
@@ -301,13 +301,11 @@ def delete_folder(folder_id):
             if doc.r2_key:
                 try:
                     r2_service.delete_file(doc.r2_key)
-                except:
+                except Exception:
                     pass
             db.session.delete(doc)
         
-        allocations = UserFolderAllocation.query.filter_by(folder_id=folder_id).all()
-        for allocation in allocations:
-            db.session.delete(allocation)
+        UserFolderAllocation.query.filter_by(folder_id=folder_id).delete(synchronize_session=False)
         
         db.session.delete(folder)
         db.session.commit()
@@ -315,6 +313,7 @@ def delete_folder(folder_id):
         return jsonify({'message': 'Folder deleted successfully'}), 200
     except Exception as e:
         db.session.rollback()
+        print(f"Delete folder error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/web/documents', methods=['GET'])
@@ -322,7 +321,7 @@ def delete_folder(folder_id):
 def get_documents():
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
         
@@ -334,7 +333,7 @@ def get_documents():
     documents_data = []
     for doc in documents.items:
         doc_dict = doc.to_dict()
-        owner = User.query.get(doc.owner_id)
+        owner = db.session.get(User, doc.owner_id)
         doc_dict['owner_name'] = owner.name if owner else 'Unknown'
         documents_data.append(doc_dict)
     
@@ -350,7 +349,7 @@ def get_documents():
 def upload_document():
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
         
@@ -400,11 +399,11 @@ def upload_document():
 def delete_document(doc_id):
     from flask_jwt_extended import get_jwt_identity
     current_user_id = int(get_jwt_identity())
-    admin = User.query.get(current_user_id)
+    admin = db.session.get(User, current_user_id)
     if not admin or admin.role != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
         
-    document = Document.query.get(doc_id)
+    document = db.session.get(Document, doc_id)
     
     if not document:
         return jsonify({'error': 'Document not found'}), 404
