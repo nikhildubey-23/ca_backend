@@ -22,6 +22,8 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
     
     def to_dict(self):
+        from models.user_folder_allocation import UserFolderAllocation
+        allocations = UserFolderAllocation.query.filter_by(user_id=self.id).all()
         return {
             'id': self.id,
             'email': self.email,
@@ -29,5 +31,6 @@ class User(db.Model):
             'pan': self.pan,
             'phone': self.phone,
             'role': self.role,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'allocated_folders': [a.folder_id for a in allocations]
         }
