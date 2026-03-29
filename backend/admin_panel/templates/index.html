@@ -325,7 +325,7 @@
                 }
                 
                 const data = await res.json();
-                const docsData = docsRes.ok ? docsRes.json() : { documents: [] };
+                const docsData = docsRes.ok ? await docsRes.json() : { documents: [] };
                 const folders = data.folders || [];
                 const documents = docsData.documents || [];
                 
@@ -360,8 +360,8 @@
                 const docsRes = await fetchWithRetry(`${apiBase}/documents`, { headers: { 'Authorization': `Bearer ${token}` } });
                 const usersRes = await fetchWithRetry(`${apiBase}/users?per_page=100`, { headers: { 'Authorization': `Bearer ${token}` } });
                 
-                const docsData = docsRes.ok ? docsRes.json() : { documents: [] };
-                const usersData = usersRes.ok ? usersRes.json() : { users: [] };
+                const docsData = docsRes.ok ? await docsRes.json() : { documents: [] };
+                const usersData = usersRes.ok ? await usersRes.json() : { users: [] };
                 
                 const folderDocs = (docsData.documents || []).filter(d => d.folder_id === folderId);
                 const users = usersData.users || [];
