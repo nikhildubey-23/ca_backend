@@ -10,7 +10,7 @@ admin_bp = Blueprint('admin', __name__)
 
 def check_admin():
     current_user_id = get_jwt_identity()
-    admin = User.query.get(int(current_user_id))
+    admin = db.session.get(User, int(current_user_id))
     if not admin or admin.role != 'admin':
         return False
     return True
@@ -46,7 +46,7 @@ def get_user(user_id):
     if not check_admin():
         return jsonify({'error': 'Admin access required'}), 403
     
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     
     if not user:
         return jsonify({'error': 'User not found'}), 404
@@ -64,7 +64,7 @@ def allocate_folders_to_user(user_id):
     if not check_admin():
         return jsonify({'error': 'Admin access required'}), 403
     
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
@@ -74,7 +74,7 @@ def allocate_folders_to_user(user_id):
     UserFolderAllocation.query.filter_by(user_id=user_id).delete()
     
     for folder_id in folder_ids:
-        folder = Folder.query.get(folder_id)
+        folder = db.session.get(Folder, folder_id)
         if folder:
             allocation = UserFolderAllocation(
                 user_id=user_id,
@@ -136,7 +136,7 @@ def delete_folder(folder_id):
     if not check_admin():
         return jsonify({'error': 'Admin access required'}), 403
     
-    folder = Folder.query.get(folder_id)
+    folder = db.session.get(Folder, folder_id)
     if not folder:
         return jsonify({'error': 'Folder not found'}), 404
     
@@ -167,7 +167,7 @@ def list_all_documents():
     docs_data = []
     for d in documents.items:
         doc_dict = d.to_dict()
-        owner = User.query.get(d.owner_id)
+        owner = db.session.get(User, d.owner_id)
         doc_dict['owner_name'] = owner.name if owner else 'Unknown'
         doc_dict['owner_email'] = owner.email if owner else ''
         doc_dict['owner_phone'] = owner.phone if owner else ''
