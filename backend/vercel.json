@@ -3,17 +3,24 @@
   "builds": [
     {
       "src": "app.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "outputDirectory": "admin_panel"
+      }
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "app.py"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "app.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "app.py"
     }
-  ],
-  "env": {
-    "FLASK_ENV": "production"
-  },
-  "regions": ["bom1"]
+  ]
 }

@@ -447,3 +447,7 @@ if __name__ == '__main__':
     print("Default Admin: admin@taxpilot.com / admin123")
     print("========================================\n")
     app.run(debug=False, host='0.0.0.0', port=5000, use_reloader=False)
+
+# Vercel handler
+def handler(request):
+    return app(request)
