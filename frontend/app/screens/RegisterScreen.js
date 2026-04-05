@@ -62,8 +62,8 @@ export default function RegisterScreen({ navigation }) {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logo}>My CA App</Text>
-          <Text style={styles.tagline}>Create Your Account</Text>
+          <Text style={styles.logo}>MY CA APP</Text>
+          <Text style={styles.tagline}>by Ankit Goyal</Text>
         </View>
 
         <View style={styles.formContainer}>

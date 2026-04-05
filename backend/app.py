@@ -17,6 +17,7 @@ app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'taxpilot-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///taxpilot.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET', 'taxpilot-jwt-secret')
+print(f"Database URL configured: {os.getenv('DATABASE_URL', 'sqlite:///taxpilot.db')[:50]}...")
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 
@@ -423,19 +424,47 @@ def delete_document(doc_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-with app.app_context():
-    db.create_all()
+@app.route('/api/admin/web/documents/<int:doc_id>/download', methods=['GET'])
+@jwt_required()
+def admin_download_document(doc_id):
+    from flask_jwt_extended import get_jwt_identity
+    current_user_id = int(get_jwt_identity())
+    admin = db.session.get(User, current_user_id)
+    if not admin or admin.role != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    document = db.session.get(Document, doc_id)
     
-    if not User.query.filter_by(email='admin@taxpilot.com').first():
-        admin = User(
-            email='admin@taxpilot.com',
-            name='Admin',
-            role='admin'
-        )
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
-        print("Default admin created: admin@taxpilot.com / admin123")
+    if not document:
+        return jsonify({'error': 'Document not found'}), 404
+    
+    if document.r2_key:
+        presigned_url = r2_service.get_presigned_url(document.r2_key)
+        return jsonify({
+            'download_url': presigned_url,
+            'document': document.to_dict()
+        }), 200
+    
+    return jsonify({'error': 'Document file not available'}), 404
+
+with app.app_context():
+    try:
+        db.create_all()
+        
+        if not User.query.filter_by(email='admin@taxpilot.com').first():
+            admin = User(
+                email='admin@taxpilot.com',
+                name='Admin',
+                role='admin'
+            )
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.commit()
+            print("Default admin created: admin@taxpilot.com / admin123")
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == '__main__':
     print("\n========================================")

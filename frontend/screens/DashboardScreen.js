@@ -30,9 +30,12 @@ export default function DashboardScreen({ navigation }) {
       ]);
 
       const records = taxRes.data.records || [];
-      const totalIncome = records.reduce((sum, r) => sum + (r.total_income || 0), 0);
-      const estimatedTax = records.reduce((sum, r) => sum + (r.estimated_tax || 0), 0);
-      const deductions = records.reduce((sum, r) => sum + (r.total_deductions || 0), 0);
+      
+      const latestRecord = records.length > 0 ? records[records.length - 1] : null;
+      
+      const totalIncome = latestRecord?.total_income || 0;
+      const estimatedTax = latestRecord?.estimated_tax || 0;
+      const deductions = latestRecord?.total_deductions || 0;
 
       setStats({
         totalIncome,
@@ -70,8 +73,8 @@ export default function DashboardScreen({ navigation }) {
     <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Hello, {user?.name || 'User'}</Text>
-          <Text style={styles.subGreeting}>Here's your tax overview</Text>
+          <Text style={styles.greeting}>MY CA APP</Text>
+          <Text style={styles.subGreeting}>by Ankit Goyal</Text>
         </View>
       </View>
 
@@ -135,17 +138,29 @@ export default function DashboardScreen({ navigation }) {
       </View>
 
       <View style={styles.summarySection}>
+        <Text style={styles.sectionTitle}>Documents Summary</Text>
         <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Ionicons name="folder" size={20} color="#3498db" />
-            <Text style={styles.summaryLabel}>Folders</Text>
-            <Text style={styles.summaryValue}>{stats.folders}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Ionicons name="document" size={20} color="#3498db" />
-            <Text style={styles.summaryLabel}>Documents</Text>
-            <Text style={styles.summaryValue}>{stats.documents}</Text>
-          </View>
+          <TouchableOpacity style={styles.summaryCard} onPress={() => navigation.navigate('Documents', { initialTab: 'folders' })}>
+            <View style={[styles.summaryIcon, { backgroundColor: '#3498db20' }]}>
+              <Ionicons name="folder" size={28} color="#3498db" />
+            </View>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Folders</Text>
+              <Text style={styles.summaryValue}>{stats.folders}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.summaryCard} onPress={() => navigation.navigate('Documents', { initialTab: 'documents' })}>
+            <View style={[styles.summaryIcon, { backgroundColor: '#27ae6020' }]}>
+              <Ionicons name="document-text" size={28} color="#27ae60" />
+            </View>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Documents</Text>
+              <Text style={styles.summaryValue}>{stats.documents}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -266,28 +281,41 @@ const styles = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: 'row',
+    gap: 10,
+  },
+  summaryCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
+    padding: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
   },
-  summaryItem: {
-    flex: 1,
-    flexDirection: 'row',
+  summaryIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
   },
+  summaryInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
   summaryLabel: {
-    marginLeft: 10,
-    marginRight: 5,
+    fontSize: 12,
     color: '#7f8c8d',
   },
   summaryValue: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#2c3e50',
+    marginTop: 2,
   },
   recentSection: {
     padding: 15,

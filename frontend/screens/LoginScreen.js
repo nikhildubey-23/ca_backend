@@ -31,8 +31,8 @@ export default function LoginScreen({ navigation }) {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logo}>My CA App</Text>
-          <Text style={styles.tagline}>Smart Tax Management</Text>
+          <Text style={styles.logo}>MY CA APP</Text>
+          <Text style={styles.tagline}>by Ankit Goyal</Text>
         </View>
 
         <View style={styles.guestButtonsContainer}>
@@ -40,7 +40,7 @@ export default function LoginScreen({ navigation }) {
           <View style={styles.guestButtons}>
             <TouchableOpacity 
               style={styles.guestButton}
-              onPress={() => navigation.navigate('Calculator')}
+              onPress={() => navigation.navigate('GuestTabs', { screen: 'Calculator' })}
             >
               <Ionicons name="calculator" size={24} color="#27ae60" />
               <Text style={styles.guestButtonText}>Calculator</Text>
@@ -48,7 +48,7 @@ export default function LoginScreen({ navigation }) {
             
             <TouchableOpacity 
               style={styles.guestButton}
-              onPress={() => navigation.navigate('Chatbot')}
+              onPress={() => navigation.navigate('GuestTabs', { screen: 'Chatbot' })}
             >
               <Ionicons name="chatbubbles" size={24} color="#3498db" />
               <Text style={styles.guestButtonText}>AI Help</Text>

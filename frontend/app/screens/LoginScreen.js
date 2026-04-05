@@ -1,13 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricType, setBiometricType] = useState(null);
   const { login } = useAuth();
+
+  useEffect(() => {
+    checkBiometricSupport();
+    loadSavedCredentials();
+  }, []);
+
+  const checkBiometricSupport = async () => {
+    try {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+
+      if (compatible && enrolled) {
+        setBiometricAvailable(true);
+        if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+          setBiometricType('Face ID');
+        } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+          setBiometricType('Fingerprint');
+        } else {
+          setBiometricType('Biometric');
+        }
+      }
+    } catch (error) {
+      console.log('Biometric check error:', error);
+    }
+  };
+
+  const loadSavedCredentials = async () => {
+    try {
+      const savedEmail = await AsyncStorage.getItem('savedEmail');
+      if (savedEmail) {
+        setIdentifier(savedEmail);
+      }
+    } catch (error) {
+      console.log('Error loading saved credentials:', error);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Login with ' + biometricType,
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: true,
+      });
+
+      if (result.success) {
+        const savedEmail = await AsyncStorage.getItem('savedEmail');
+        const savedPassword = await AsyncStorage.getItem('savedPassword');
+
+        if (savedEmail && savedPassword) {
+          setLoading(true);
+          const loginResult = await login(savedEmail, savedPassword);
+          setLoading(false);
+
+          if (!loginResult.success) {
+            Alert.alert('Error', 'Please login with credentials');
+          }
+        } else {
+          Alert.alert('Setup Required', 'Please login with credentials first to enable biometric login');
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Biometric authentication failed');
+    }
+  };
 
   const handleLogin = async () => {
     if (!identifier || !password) {
@@ -19,7 +89,10 @@ export default function LoginScreen({ navigation }) {
     const result = await login(identifier, password);
     setLoading(false);
 
-    if (!result.success) {
+    if (result.success) {
+      await AsyncStorage.setItem('savedEmail', identifier);
+      await AsyncStorage.setItem('savedPassword', password);
+    } else {
       Alert.alert('Login Failed', result.error);
     }
   };
@@ -31,8 +104,8 @@ export default function LoginScreen({ navigation }) {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logo}>My CA App</Text>
-          <Text style={styles.tagline}>Smart Tax Management</Text>
+          <Text style={styles.logo}>MY CA APP</Text>
+          <Text style={styles.tagline}>by Ankit Goyal</Text>
         </View>
 
         <View style={styles.guestButtonsContainer}>
@@ -40,7 +113,7 @@ export default function LoginScreen({ navigation }) {
           <View style={styles.guestButtons}>
             <TouchableOpacity 
               style={styles.guestButton}
-              onPress={() => navigation.navigate('Calculator')}
+              onPress={() => navigation.navigate('GuestTabs', { screen: 'Calculator' })}
             >
               <Ionicons name="calculator" size={24} color="#27ae60" />
               <Text style={styles.guestButtonText}>Calculator</Text>
@@ -48,7 +121,7 @@ export default function LoginScreen({ navigation }) {
             
             <TouchableOpacity 
               style={styles.guestButton}
-              onPress={() => navigation.navigate('Chatbot')}
+              onPress={() => navigation.navigate('GuestTabs', { screen: 'Chatbot' })}
             >
               <Ionicons name="chatbubbles" size={24} color="#3498db" />
               <Text style={styles.guestButtonText}>AI Help</Text>
@@ -90,6 +163,17 @@ export default function LoginScreen({ navigation }) {
               <Text style={styles.loginButtonText}>Sign In</Text>
             )}
           </TouchableOpacity>
+
+          {biometricAvailable && (
+            <TouchableOpacity style={styles.biometricButton} onPress={handleBiometricLogin}>
+              <Ionicons 
+                name={biometricType === 'Face ID' ? 'scan' : 'finger-print'} 
+                size={28} 
+                color="#3498db" 
+              />
+              <Text style={styles.biometricText}>Login with {biometricType}</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Don't have an account? </Text>
@@ -207,6 +291,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e8f4fd',
+    borderRadius: 10,
+    padding: 15,
+    marginTop: 15,
+    borderWidth: 1,
+    borderColor: '#3498db',
+  },
+  biometricText: {
+    color: '#3498db',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 10,
   },
   registerContainer: {
     flexDirection: 'row',

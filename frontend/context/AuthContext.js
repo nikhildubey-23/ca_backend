@@ -77,11 +77,19 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem('authToken');
-    await AsyncStorage.removeItem('user');
+    console.log('AuthContext: Starting logout');
+    try {
+      await AsyncStorage.removeItem('authToken');
+      await AsyncStorage.removeItem('user');
+      console.log('AuthContext: Storage cleared');
+    } catch (e) {
+      console.log('AuthContext: Storage clear error', e);
+    }
     delete api.client.defaults.headers.common['Authorization'];
     setToken(null);
     setUser(null);
+    console.log('AuthContext: Logout complete, user is now:', null);
+    console.log('AuthContext: token is now:', token);
   };
 
   const updateProfile = async (data) => {

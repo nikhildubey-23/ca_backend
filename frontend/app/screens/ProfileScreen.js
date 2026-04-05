@@ -1,15 +1,24 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Linking } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Linking, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { useNavigation } from '@react-navigation/native';
+import { folderService, documentService, taxService } from '../services/api';
+import { notificationService } from '../services/notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProfileScreen({ navigation }) {
   const { user, updateProfile, logout } = useAuth();
+  const { theme, isDarkMode, toggleTheme } = useTheme();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [pan, setPan] = useState(user?.pan || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [saving, setSaving] = useState(false);
+  const [stats, setStats] = useState({ folders: 0, documents: 0, calculations: 0 });
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -30,10 +39,13 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: logout },
-    ]);
+    console.log('Logout button pressed');
+    logout();
+    console.log('Logout called');
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
   };
 
   const handleCall = () => {
@@ -41,6 +53,50 @@ export default function ProfileScreen({ navigation }) {
     Linking.openURL(`tel:${phoneNumber}`).catch(err => {
       Alert.alert('Error', 'Unable to make call. Please try again.');
     });
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      const [foldersRes, docsRes, taxRes] = await Promise.all([
+        folderService.getFolders().catch(() => ({ data: { folders: [] } })),
+        documentService.getDocuments().catch(() => ({ data: { documents: [] } })),
+        taxService.getTaxRecords().catch(() => ({ data: { records: [] } })),
+      ]);
+      setStats({
+        folders: foldersRes.data.folders?.length || 0,
+        documents: docsRes.data.documents?.length || 0,
+        calculations: taxRes.data.records?.length || 0,
+      });
+    } catch (error) {
+      console.log('Error loading stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const handleShareApp = () => {
+    Alert.alert(
+      'Share App',
+      'Share TaxPilot with your friends and family!',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const toggleNotifications = async (value) => {
+    setNotificationsEnabled(value);
+    if (value) {
+      await notificationService.requestPermissions();
+      await notificationService.scheduleITRReminder();
+      await notificationService.scheduleAdvanceTaxReminder();
+      Alert.alert('Enabled', 'Tax deadline reminders are now active');
+    } else {
+      await notificationService.cancelAllNotifications();
+      Alert.alert('Disabled', 'Notifications have been turned off');
+    }
   };
 
   return (
@@ -160,35 +216,147 @@ export default function ProfileScreen({ navigation }) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Links</Text>
         
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Documents')}>
-          <View style={styles.menuIcon}>
-            <Ionicons name="document-text-outline" size={20} color="#3498db" />
+        <TouchableOpacity style={styles.quickLinkCard} onPress={() => navigation.navigate('Documents', { initialTab: 'folders' })}>
+          <View style={styles.quickLinkLeft}>
+            <View style={[styles.quickLinkIcon, { backgroundColor: '#3498db20' }]}>
+              <Ionicons name="folder" size={24} color="#3498db" />
+            </View>
+            <View style={styles.quickLinkInfo}>
+              <Text style={styles.quickLinkTitle}>My Documents</Text>
+              <Text style={styles.quickLinkDesc}>View all your documents & folders</Text>
+            </View>
           </View>
-          <Text style={styles.menuText}>My Documents</Text>
+          <View style={styles.quickLinkRight}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{stats.documents}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.quickLinkCard} onPress={() => navigation.navigate('Documents', { initialTab: 'folders' })}>
+          <View style={styles.quickLinkLeft}>
+            <View style={[styles.quickLinkIcon, { backgroundColor: '#f39c1220' }]}>
+              <Ionicons name="folder-open" size={24} color="#f39c12" />
+            </View>
+            <View style={styles.quickLinkInfo}>
+              <Text style={styles.quickLinkTitle}>Tax History</Text>
+              <Text style={styles.quickLinkDesc}>Browse your folders from CA</Text>
+            </View>
+          </View>
+          <View style={styles.quickLinkRight}>
+            <View style={[styles.badge, { backgroundColor: '#f39c12' }]}>
+              <Text style={styles.badgeText}>{stats.folders}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.quickLinkCard} onPress={() => navigation.navigate('Calculator')}>
+          <View style={styles.quickLinkLeft}>
+            <View style={[styles.quickLinkIcon, { backgroundColor: '#27ae6020' }]}>
+              <Ionicons name="calculator" size={24} color="#27ae60" />
+            </View>
+            <View style={styles.quickLinkInfo}>
+              <Text style={styles.quickLinkTitle}>Tax Calculator</Text>
+              <Text style={styles.quickLinkDesc}>Calculate your tax liability</Text>
+            </View>
+          </View>
+          <View style={styles.quickLinkRight}>
+            <View style={[styles.badge, { backgroundColor: '#27ae60' }]}>
+              <Text style={styles.badgeText}>{stats.calculations}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.quickLinkCard} onPress={() => navigation.navigate('Chatbot')}>
+          <View style={styles.quickLinkLeft}>
+            <View style={[styles.quickLinkIcon, { backgroundColor: '#9b59b620' }]}>
+              <Ionicons name="chatbubbles" size={24} color="#9b59b6" />
+            </View>
+            <View style={styles.quickLinkInfo}>
+              <Text style={styles.quickLinkTitle}>AI Tax Help</Text>
+              <Text style={styles.quickLinkDesc}>Get answers to tax questions</Text>
+            </View>
+          </View>
           <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Calculator')}>
-          <View style={styles.menuIcon}>
-            <Ionicons name="calculator-outline" size={20} color="#3498db" />
+        <TouchableOpacity style={styles.quickLinkCard} onPress={() => navigation.navigate('Contact')}>
+          <View style={styles.quickLinkLeft}>
+            <View style={[styles.quickLinkIcon, { backgroundColor: '#e74c3c20' }]}>
+              <Ionicons name="call" size={24} color="#e74c3c" />
+            </View>
+            <View style={styles.quickLinkInfo}>
+              <Text style={styles.quickLinkTitle}>Contact CA</Text>
+              <Text style={styles.quickLinkDesc}>Get in touch with your CA</Text>
+            </View>
           </View>
-          <Text style={styles.menuText}>Tax Calculator</Text>
+          <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Settings</Text>
+        
+        <View style={styles.settingItem}>
+          <View style={styles.settingLeft}>
+            <View style={[styles.menuIcon, { backgroundColor: '#2c3e5020' }]}>
+              <Ionicons name="moon" size={20} color="#2c3e50" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.menuText}>Dark Mode</Text>
+              <Text style={styles.settingDesc}>{isDarkMode ? 'Currently enabled' : 'Currently disabled'}</Text>
+            </View>
+          </View>
+          <Switch
+            value={isDarkMode}
+            onValueChange={toggleTheme}
+            trackColor={{ false: '#ddd', true: '#3498db' }}
+            thumbColor={isDarkMode ? '#fff' : '#f4f3f4'}
+          />
+        </View>
+
+        <View style={styles.settingItem}>
+          <View style={styles.settingLeft}>
+            <View style={[styles.menuIcon, { backgroundColor: '#e74c3c20' }]}>
+              <Ionicons name="notifications" size={20} color="#e74c3c" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.menuText}>Tax Reminders</Text>
+              <Text style={styles.settingDesc}>ITR & deadline notifications</Text>
+            </View>
+          </View>
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={toggleNotifications}
+            trackColor={{ false: '#ddd', true: '#3498db' }}
+            thumbColor={notificationsEnabled ? '#fff' : '#f4f3f4'}
+          />
+        </View>
+
+        <TouchableOpacity style={styles.menuItem} onPress={handleShareApp}>
+          <View style={styles.menuIcon}>
+            <Ionicons name="share-social-outline" size={20} color="#3498db" />
+          </View>
+          <Text style={styles.menuText}>Share App</Text>
           <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Chatbot')}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Privacy Policy', 'Coming soon!')}>
+          <View style={styles.menuIcon}>
+            <Ionicons name="shield-checkmark-outline" size={20} color="#3498db" />
+          </View>
+          <Text style={styles.menuText}>Privacy Policy</Text>
+          <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Help & Support', 'Email: support@taxpilot.in\nPhone: 9806509694')}>
           <View style={styles.menuIcon}>
             <Ionicons name="help-circle-outline" size={20} color="#3498db" />
           </View>
-          <Text style={styles.menuText}>AI Help</Text>
-          <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Contact')}>
-          <View style={styles.menuIcon}>
-            <Ionicons name="mail-outline" size={20} color="#3498db" />
-          </View>
-          <Text style={styles.menuText}>Contact CA</Text>
+          <Text style={styles.menuText}>Help & Support</Text>
           <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
         </TouchableOpacity>
       </View>
@@ -372,6 +540,79 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#2c3e50',
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ecf0f1',
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingInfo: {
+    flex: 1,
+    marginLeft: 15,
+  },
+  settingDesc: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 2,
+  },
+  quickLinkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 10,
+  },
+  quickLinkLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  quickLinkIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickLinkInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  quickLinkTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  quickLinkDesc: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 2,
+  },
+  quickLinkRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badge: {
+    backgroundColor: '#3498db',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: 8,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   logoutBtn: {
     flexDirection: 'row',

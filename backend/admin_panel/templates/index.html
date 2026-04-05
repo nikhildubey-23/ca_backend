@@ -374,17 +374,23 @@
                 }
                 
                 if (folderDocs.length === 0) {
-                    document.getElementById('folder-documents-body').innerHTML = '<tr><td colspan="5" class="text-center text-muted">No documents in this folder</td></tr>';
+                    document.getElementById('folder-documents-body').innerHTML = '<tr><td colspan="6" class="text-center text-muted">No documents in this folder</td></tr>';
                 } else {
                     document.getElementById('folder-documents-body').innerHTML = folderDocs.map(d => {
                         const owner = users.find(u => u.id === d.owner_id);
+                        const fileIcon = getFileIconClass(d.mime_type);
+                        const iconColor = getFileIconColor(d.mime_type);
                         return `
                         <tr>
-                            <td><i class="fas fa-file-pdf text-danger me-2"></i>${escapeHtml(d.name || '')}</td>
+                            <td><i class="${fileIcon} ${iconColor} me-2"></i>${escapeHtml(d.name || '')}</td>
                             <td><span class="badge bg-secondary">${escapeHtml(d.document_type || 'other')}</span></td>
                             <td>${escapeHtml(owner?.name || 'Unknown')}<br><small class="text-muted">${escapeHtml(owner?.email || owner?.phone || '')}</small></td>
                             <td>${formatFileSize(d.file_size)}</td>
-                            <td><button class="btn btn-sm btn-outline-danger" onclick="deleteDocument(${d.id})"><i class="fas fa-trash"></i></button></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="viewDocument(${d.id})" title="View"><i class="fas fa-eye"></i></button>
+                                <button class="btn btn-sm btn-outline-success me-1" onclick="downloadDocument(${d.id}, '${escapeHtml(d.name || 'document')}')" title="Download"><i class="fas fa-download"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteDocument(${d.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                            </td>
                         </tr>
                     `}).join('');
                 }
@@ -422,13 +428,15 @@
                 }
                 
                 if (documents.length === 0) {
-                    document.getElementById('documents-table-body').innerHTML = '<tr><td colspan="6" class="text-center text-muted">No documents uploaded yet</td></tr>';
+                    document.getElementById('documents-table-body').innerHTML = '<tr><td colspan="7" class="text-center text-muted">No documents uploaded yet</td></tr>';
                 } else {
                     document.getElementById('documents-table-body').innerHTML = documents.map(d => {
                         const folder = folders.find(f => f.id === d.folder_id);
+                        const fileIcon = getFileIconClass(d.mime_type);
+                        const iconColor = getFileIconColor(d.mime_type);
                         return `
                         <tr>
-                            <td><i class="fas fa-file-pdf text-danger me-2"></i>${escapeHtml(d.name || '')}</td>
+                            <td><i class="${fileIcon} ${iconColor} me-2"></i>${escapeHtml(d.name || '')}</td>
                             <td><span class="badge bg-secondary">${escapeHtml(d.document_type || 'other')}</span></td>
                             <td>${folder ? '<i class="fas fa-folder text-warning me-1"></i>' + escapeHtml(folder.name) : '<span class="text-muted">No Folder</span>'}</td>
                             <td>
@@ -436,7 +444,11 @@
                                 <br><small class="text-muted">${escapeHtml(d.owner_email || d.owner_phone || '')}</small>
                             </td>
                             <td>${formatFileSize(d.file_size)}</td>
-                            <td><button class="btn btn-sm btn-outline-danger" onclick="deleteDocument(${d.id})"><i class="fas fa-trash"></i></button></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="viewDocument(${d.id})" title="View"><i class="fas fa-eye"></i></button>
+                                <button class="btn btn-sm btn-outline-success me-1" onclick="downloadDocument(${d.id}, '${escapeHtml(d.name || 'document')}')" title="Download"><i class="fas fa-download"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteDocument(${d.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                            </td>
                         </tr>
                     `}).join('');
                 }
@@ -633,6 +645,72 @@
                 }
             } catch (err) {
                 alert('Error saving allocation');
+            }
+        }
+
+        function getFileIconClass(mimeType) {
+            if (mimeType?.includes('pdf')) return 'fas fa-file-pdf';
+            if (mimeType?.includes('image')) return 'fas fa-file-image';
+            if (mimeType?.includes('word')) return 'fas fa-file-word';
+            if (mimeType?.includes('sheet') || mimeType?.includes('excel')) return 'fas fa-file-excel';
+            return 'fas fa-file-alt';
+        }
+
+        function getFileIconColor(mimeType) {
+            if (mimeType?.includes('pdf')) return 'text-danger';
+            if (mimeType?.includes('image')) return 'text-success';
+            if (mimeType?.includes('word')) return 'text-primary';
+            if (mimeType?.includes('sheet') || mimeType?.includes('excel')) return 'text-success';
+            return 'text-secondary';
+        }
+
+        async function viewDocument(docId) {
+            try {
+                const res = await fetch(`${apiBase}/documents/${docId}/download`, { 
+                    headers: { 'Authorization': `Bearer ${token}` } 
+                });
+                
+                if (!res.ok) {
+                    throw new Error('Failed to get document URL');
+                }
+                
+                const data = await res.json();
+                if (data.download_url) {
+                    window.open(data.download_url, '_blank');
+                } else {
+                    alert('Document URL not available');
+                }
+            } catch (err) {
+                console.error('View document error:', err);
+                alert('Failed to view document. Please try again.');
+            }
+        }
+
+        async function downloadDocument(docId, docName) {
+            try {
+                const res = await fetch(`${apiBase}/documents/${docId}/download`, { 
+                    headers: { 'Authorization': `Bearer ${token}` } 
+                });
+                
+                if (!res.ok) {
+                    throw new Error('Failed to get document URL');
+                }
+                
+                const data = await res.json();
+                if (data.download_url) {
+                    const link = document.createElement('a');
+                    link.href = data.download_url;
+                    link.download = docName || 'document';
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } else {
+                    alert('Document URL not available');
+                }
+            } catch (err) {
+                console.error('Download document error:', err);
+                alert('Failed to download document. Please try again.');
             }
         }
 

@@ -29,10 +29,6 @@ class ApiService {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
-          AsyncStorage.removeItem('authToken');
-          AsyncStorage.removeItem('user');
-        }
         return Promise.reject(error);
       }
     );
@@ -57,9 +53,12 @@ class ApiService {
 
   async post(endpoint, data = {}) {
     try {
+      console.log('API POST:', endpoint, JSON.stringify(data));
       const response = await this.client.post(endpoint, data);
+      console.log('API Response:', response.status, response.data);
       return response;
     } catch (error) {
+      console.log('API Error:', error.message, error.response?.status, error.response?.data);
       throw this.handleError(error);
     }
   }
@@ -95,9 +94,14 @@ class ApiService {
   }
 
   handleError(error) {
-    console.error('API Error:', error);
-    
     if (error.response) {
+      if (error.response.status === 401) {
+        return {
+          message: 'Unauthorized',
+          status: 401,
+          data: error.response.data,
+        };
+      }
       return {
         message: error.response.data?.error || error.response.data?.message || 'Server error',
         status: error.response.status,
@@ -111,6 +115,7 @@ class ApiService {
         status: 0,
       };
     } else {
+      console.error('API Error:', error);
       return {
         message: error.message || 'An unexpected error occurred',
         status: -1,
@@ -139,6 +144,7 @@ export const documentService = {
   uploadDocument: (formData) => api.uploadFile('/documents/upload', formData),
   deleteDocument: (id) => api.delete(`/documents/${id}`),
   getDocumentTypes: () => api.get('/documents/types'),
+  getDownloadUrl: (id) => api.get(`/documents/${id}/download`),
 };
 
 export const folderService = {

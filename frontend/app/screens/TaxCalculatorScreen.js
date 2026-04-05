@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { taxService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
-export default function TaxCalculatorScreen() {
+export default function TaxCalculatorScreen({ navigation }) {
+  const { user } = useAuth();
   const [regime, setRegime] = useState('new');
   const [financialYear, setFinancialYear] = useState('2024-25');
   const [basicSalary, setBasicSalary] = useState('');
@@ -19,6 +21,14 @@ export default function TaxCalculatorScreen() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const defaultSuggestions = [
+    { id: '1', title: 'Invest in Section 80C - Up to ₹1.5L deduction', description: 'ELSS, PPF, NSC, life insurance, etc.' },
+    { id: '2', title: 'Health Insurance under Section 80D', description: 'Up to ₹25,000-₹50,000 for self, family & parents' },
+    { id: '3', title: 'HRA Claim', description: 'Claim House Rent Allowance if you receive HRA component' },
+    { id: '4', title: 'NPS Contribution Section 80CCD(1B)', description: 'Extra ₹50,000 deduction over 80C limit' },
+    { id: '5', title: 'Education Loan Interest', description: 'Section 80E - No limit on interest amount' },
+  ];
+
   useEffect(() => {
     loadSuggestions();
   }, []);
@@ -26,9 +36,15 @@ export default function TaxCalculatorScreen() {
   const loadSuggestions = async () => {
     try {
       const res = await taxService.getSuggestions();
-      setSuggestions(res.data.suggestions || []);
+      setSuggestions(res.data.suggestions || defaultSuggestions);
     } catch (error) {
-      console.error('Load suggestions error:', error);
+      const status = error.response?.status || error.status;
+      if (status === 401) {
+        setSuggestions(defaultSuggestions);
+      } else {
+        console.error('Load suggestions error:', error);
+        setSuggestions(defaultSuggestions);
+      }
     }
   };
 
@@ -93,8 +109,28 @@ export default function TaxCalculatorScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tax Calculator</Text>
-        <Text style={styles.headerSubtitle}>Estimate your tax liability</Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.headerTitle}>MY CA APP</Text>
+            <Text style={styles.headerSubtitle}>by Ankit Goyal</Text>
+          </View>
+          {!user && (
+            <View style={styles.headerAuth}>
+              <TouchableOpacity 
+                style={styles.authBtn} 
+                onPress={() => navigation.navigate('Login')}
+              >
+                <Text style={styles.authBtnText}>Login</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.authBtn, styles.signupBtn]} 
+                onPress={() => navigation.navigate('Register')}
+              >
+                <Text style={styles.authBtnText}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
 
       <View style={styles.regimeToggle}>
@@ -233,6 +269,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#bdc3c7',
     marginTop: 5,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerAuth: {
+    flexDirection: 'row',
+  },
+  authBtn: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    marginLeft: 8,
+  },
+  signupBtn: {
+    backgroundColor: '#27ae60',
+  },
+  authBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   regimeToggle: {
     flexDirection: 'row',

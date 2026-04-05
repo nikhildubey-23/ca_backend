@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, RefreshContr
 import { Ionicons } from '@expo/vector-icons';
 import { folderService, documentService } from '../services/api';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 const DOCUMENT_TYPES = [
   { id: 'form16', name: 'Form 16' },
@@ -16,12 +18,12 @@ const DOCUMENT_TYPES = [
   { id: 'other', name: 'Other' },
 ];
 
-export default function DocumentsScreen({ navigation }) {
+export default function DocumentsScreen({ navigation, route }) {
   const [folders, setFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('documents');
+  const [activeTab, setActiveTab] = useState(route.params?.initialTab || 'documents');
   const [uploading, setUploading] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -125,6 +127,50 @@ export default function DocumentsScreen({ navigation }) {
     ]);
   };
 
+  const handleViewDocument = (doc) => {
+    navigation.navigate('DocumentViewer', {
+      documentId: doc.id,
+      documentName: doc.name,
+      documentType: doc.document_type,
+    });
+  };
+
+  const handleDownloadDocument = async (doc) => {
+    Alert.alert(
+      'Download Document',
+      `Download "${doc.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Download',
+          onPress: async () => {
+            try {
+              const response = await documentService.getDownloadUrl(doc.id);
+              if (response.data.download_url) {
+                const fileUri = FileSystem.documentDirectory + doc.name;
+                const result = await FileSystem.downloadAsync(response.data.download_url, fileUri);
+                
+                if (result.status === 200) {
+                  if (await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(result.uri, {
+                      mimeType: doc.mime_type || 'application/pdf',
+                      dialogTitle: `Share ${doc.name}`,
+                    });
+                  } else {
+                    Alert.alert('Downloaded', `File saved to: ${result.uri}`);
+                  }
+                }
+              }
+            } catch (error) {
+              console.log('Download error:', error);
+              Alert.alert('Error', 'Failed to download document');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -155,18 +201,28 @@ export default function DocumentsScreen({ navigation }) {
 
   const renderDocument = ({ item }) => (
     <View style={styles.documentCard}>
-      <View style={styles.documentIcon}>
-        <Ionicons name={getFileIcon(item.mime_type)} size={28} color="#e74c3c" />
-      </View>
-      <View style={styles.documentInfo}>
-        <Text style={styles.documentName} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.documentMeta}>
-          {item.document_type} • {formatFileSize(item.file_size || 0)}
-        </Text>
-      </View>
-      <TouchableOpacity onPress={() => deleteDocument(item.id)} style={styles.deleteBtn}>
-        <Ionicons name="trash-outline" size={20} color="#e74c3c" />
+      <TouchableOpacity style={styles.documentLeft} onPress={() => handleViewDocument(item)}>
+        <View style={styles.documentIcon}>
+          <Ionicons name={getFileIcon(item.mime_type)} size={28} color="#e74c3c" />
+        </View>
+        <View style={styles.documentInfo}>
+          <Text style={styles.documentName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.documentMeta}>
+            {item.document_type} • {formatFileSize(item.file_size || 0)}
+          </Text>
+        </View>
       </TouchableOpacity>
+      <View style={styles.documentActions}>
+        <TouchableOpacity onPress={() => handleViewDocument(item)} style={styles.actionBtn}>
+          <Ionicons name="eye-outline" size={20} color="#3498db" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => handleDownloadDocument(item)} style={styles.actionBtn}>
+          <Ionicons name="download-outline" size={20} color="#27ae60" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => deleteDocument(item.id)} style={styles.actionBtn}>
+          <Ionicons name="trash-outline" size={20} color="#e74c3c" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -367,12 +423,14 @@ const styles = StyleSheet.create({
   folderInfo: { flex: 1 },
   folderName: { fontSize: 16, fontWeight: '600', color: '#2c3e50' },
   folderMeta: { fontSize: 12, color: '#7f8c8d', marginTop: 3 },
-  documentCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 15, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
-  documentIcon: { marginRight: 15 },
+  documentCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
+  documentLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  documentIcon: { marginRight: 12 },
   documentInfo: { flex: 1 },
-  documentName: { fontSize: 16, fontWeight: '600', color: '#2c3e50' },
-  documentMeta: { fontSize: 12, color: '#7f8c8d', marginTop: 3 },
-  deleteBtn: { padding: 5 },
+  documentName: { fontSize: 15, fontWeight: '600', color: '#2c3e50' },
+  documentMeta: { fontSize: 11, color: '#7f8c8d', marginTop: 2 },
+  documentActions: { flexDirection: 'row', alignItems: 'center' },
+  actionBtn: { padding: 8 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 18, fontWeight: '600', color: '#2c3e50', marginTop: 15 },
   emptySubtext: { fontSize: 14, color: '#7f8c8d', marginTop: 5 },

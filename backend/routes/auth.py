@@ -7,44 +7,65 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    
-    if not data or not data.get('password') or not data.get('name'):
-        return jsonify({'error': 'Password and name are required'}), 400
-    
-    email = data.get('email', '').strip()
-    phone = data.get('phone', '').strip()
-    
-    if not email and not phone:
-        return jsonify({'error': 'Either email or phone number is required'}), 400
-    
-    if email and User.query.filter_by(email=email).first():
-        return jsonify({'error': 'Email already registered'}), 400
-    
-    if phone and User.query.filter_by(phone=phone).first():
-        return jsonify({'error': 'Phone number already registered'}), 400
-    
-    user = User(
-        email=email if email else None,
-        name=data['name'],
-        pan=data.get('pan'),
-        phone=phone if phone else None,
-        role='user'
-    )
-    user.set_password(data['password'])
-    
-    db.session.add(user)
-    db.session.commit()
-    
-    access_token = create_access_token(identity=str(user.id))
-    refresh_token = create_refresh_token(identity=str(user.id))
-    
-    return jsonify({
-        'message': 'User registered successfully',
-        'user': user.to_dict(),
-        'access_token': access_token,
-        'refresh_token': refresh_token
-    }), 201
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('password') or not data.get('name'):
+            return jsonify({'error': 'Password and name are required'}), 400
+        
+        email = data.get('email', '').strip()
+        phone = data.get('phone', '').strip()
+        
+        if not email and not phone:
+            return jsonify({'error': 'Either email or phone number is required'}), 400
+        
+        if email and User.query.filter_by(email=email).first():
+            return jsonify({'error': 'Email already registered'}), 400
+        
+        if phone and User.query.filter_by(phone=phone).first():
+            return jsonify({'error': 'Phone number already registered'}), 400
+        
+        pan = data.get('pan')
+        if pan and User.query.filter_by(pan=pan).first():
+            return jsonify({'error': 'PAN number already registered'}), 400
+        
+        user = User(
+            email=email if email else None,
+            name=data['name'],
+            pan=data.get('pan'),
+            phone=phone if phone else None,
+            role='user'
+        )
+        user.set_password(data['password'])
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
+        
+        return jsonify({
+            'message': 'User registered successfully',
+            'user': user.to_dict(),
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Registration error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        error_msg = str(e).lower()
+        if 'unique' in error_msg or 'duplicate' in error_msg:
+            if 'pan' in error_msg:
+                return jsonify({'error': 'PAN number already registered'}), 400
+            if 'email' in error_msg:
+                return jsonify({'error': 'Email already registered'}), 400
+            if 'phone' in error_msg:
+                return jsonify({'error': 'Phone number already registered'}), 400
+        
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
 
 @auth_bp.route('/login', methods=['POST'])
 def login():

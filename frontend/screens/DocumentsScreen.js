@@ -16,12 +16,12 @@ const DOCUMENT_TYPES = [
   { id: 'other', name: 'Other' },
 ];
 
-export default function DocumentsScreen({ navigation }) {
+export default function DocumentsScreen({ navigation, route }) {
   const [folders, setFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('documents');
+  const [activeTab, setActiveTab] = useState(route.params?.initialTab || 'documents');
   const [uploading, setUploading] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
