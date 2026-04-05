@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Appearance, useColorScheme, StatusBar } from 'react-native';
 
 const ThemeContext = createContext();
 
@@ -42,38 +43,75 @@ export const darkTheme = {
 };
 
 export function ThemeProvider({ children }) {
+  const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [themeMode, setThemeMode] = useState('system');
   const [theme, setTheme] = useState(lightTheme);
 
   useEffect(() => {
-    loadTheme();
-  }, []);
+    loadThemePreference();
+    
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      loadThemePreference();
+    });
 
-  const loadTheme = async () => {
+    return () => subscription.remove();
+  }, [systemColorScheme]);
+
+  const loadThemePreference = async () => {
     try {
-      const savedTheme = await AsyncStorage.getItem('theme');
-      if (savedTheme === 'dark') {
+      const savedMode = await AsyncStorage.getItem('themeMode');
+      setThemeMode(savedMode || 'system');
+
+      if (savedMode === 'system') {
+        const isSystemDark = systemColorScheme === 'dark';
+        setIsDarkMode(isSystemDark);
+        setTheme(isSystemDark ? darkTheme : lightTheme);
+      } else if (savedMode === 'dark') {
         setIsDarkMode(true);
         setTheme(darkTheme);
+      } else {
+        setIsDarkMode(false);
+        setTheme(lightTheme);
       }
     } catch (error) {
       console.log('Error loading theme:', error);
     }
   };
 
-  const toggleTheme = async () => {
+  const setThemePreference = async (mode) => {
     try {
-      const newIsDark = !isDarkMode;
-      setIsDarkMode(newIsDark);
-      setTheme(newIsDark ? darkTheme : lightTheme);
-      await AsyncStorage.setItem('theme', newIsDark ? 'dark' : 'light');
+      setThemeMode(mode);
+      await AsyncStorage.setItem('themeMode', mode);
+
+      if (mode === 'system') {
+        const isSystemDark = systemColorScheme === 'dark';
+        setIsDarkMode(isSystemDark);
+        setTheme(isSystemDark ? darkTheme : lightTheme);
+      } else if (mode === 'dark') {
+        setIsDarkMode(true);
+        setTheme(darkTheme);
+      } else {
+        setIsDarkMode(false);
+        setTheme(lightTheme);
+      }
     } catch (error) {
       console.log('Error saving theme:', error);
     }
   };
 
+  const toggleTheme = () => {
+    if (themeMode === 'system') {
+      setThemePreference('dark');
+    } else if (themeMode === 'dark') {
+      setThemePreference('light');
+    } else {
+      setThemePreference('system');
+    }
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, isDarkMode, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, isDarkMode, themeMode, setThemePreference, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

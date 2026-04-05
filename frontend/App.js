@@ -243,7 +243,6 @@ export default function App() {
           <RootNavigator />
         </AuthProvider>
       </ThemeProvider>
-      <StatusBar style="auto" />
     </SafeAreaProvider>
   );
 }

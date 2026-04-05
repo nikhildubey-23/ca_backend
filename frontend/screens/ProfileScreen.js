@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Linking, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { folderService, documentService, taxService } from '../services/api';
 
 export default function ProfileScreen({ navigation }) {
   const { user, updateProfile, logout } = useAuth();
+  const { theme, themeMode, setThemePreference } = useTheme();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [pan, setPan] = useState(user?.pan || '');
@@ -14,6 +16,7 @@ export default function ProfileScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState({ folders: 0, documents: 0, calculations: 0 });
   const [loadingStats, setLoadingStats] = useState(true);
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -194,6 +197,151 @@ export default function ProfileScreen({ navigation }) {
           <Ionicons name="chevron-forward" size={24} color="#27ae60" />
         </TouchableOpacity>
       </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Settings</Text>
+        
+        <TouchableOpacity style={styles.settingItem} onPress={() => setShowThemeModal(true)}>
+          <View style={styles.settingLeft}>
+            <View style={[styles.settingIcon, { backgroundColor: '#2c3e5020' }]}>
+              <Ionicons name="moon" size={22} color="#2c3e50" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Appearance</Text>
+              <Text style={styles.settingValue}>
+                {themeMode === 'system' ? 'System Default' : themeMode === 'dark' ? 'Dark Mode' : 'Light Mode'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.settingRight}>
+            <View style={[styles.themeBadge, { backgroundColor: themeMode === 'dark' ? '#2c3e50' : themeMode === 'light' ? '#f39c12' : '#3498db' }]}>
+              <Text style={styles.themeBadgeText}>
+                {themeMode === 'system' ? '📱' : themeMode === 'dark' ? '🌙' : '☀️'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingItem}>
+          <View style={styles.settingLeft}>
+            <View style={[styles.settingIcon, { backgroundColor: '#e74c3c20' }]}>
+              <Ionicons name="notifications" size={22} color="#e74c3c" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Notifications</Text>
+              <Text style={styles.settingValue}>Tax reminders</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingItem} onPress={handleShareApp}>
+          <View style={styles.settingLeft}>
+            <View style={[styles.settingIcon, { backgroundColor: '#3498db20' }]}>
+              <Ionicons name="share-social" size={22} color="#3498db" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Share App</Text>
+              <Text style={styles.settingValue}>Invite friends</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingItem}>
+          <View style={styles.settingLeft}>
+            <View style={[styles.settingIcon, { backgroundColor: '#27ae6020' }]}>
+              <Ionicons name="shield-checkmark" size={22} color="#27ae60" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Privacy Policy</Text>
+              <Text style={styles.settingValue}>Read our policy</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingItem}>
+          <View style={styles.settingLeft}>
+            <View style={[styles.settingIcon, { backgroundColor: '#9b59b620' }]}>
+              <Ionicons name="help-circle" size={22} color="#9b59b6" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Help & Support</Text>
+              <Text style={styles.settingValue}>Contact us</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingItem}>
+          <View style={styles.settingLeft}>
+            <View style={[styles.settingIcon, { backgroundColor: '#f39c1220' }]}>
+              <Ionicons name="information-circle" size={22} color="#f39c12" />
+            </View>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>About</Text>
+              <Text style={styles.settingValue}>Version 1.0.0</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+        </TouchableOpacity>
+      </View>
+
+      <Modal visible={showThemeModal} transparent animationType="fade" onRequestClose={() => setShowThemeModal(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowThemeModal(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Choose Appearance</Text>
+            
+            <TouchableOpacity 
+              style={[styles.themeOption, themeMode === 'system' && styles.themeOptionActive]}
+              onPress={() => { setThemePreference('system'); setShowThemeModal(false); }}
+            >
+              <View style={styles.themeOptionLeft}>
+                <Ionicons name="phone-portrait" size={24} color="#3498db" />
+                <View style={styles.themeOptionInfo}>
+                  <Text style={styles.themeOptionTitle}>System Default</Text>
+                  <Text style={styles.themeOptionDesc}>Follow phone settings</Text>
+                </View>
+              </View>
+              {themeMode === 'system' && <Ionicons name="checkmark-circle" size={24} color="#27ae60" />}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.themeOption, themeMode === 'light' && styles.themeOptionActive]}
+              onPress={() => { setThemePreference('light'); setShowThemeModal(false); }}
+            >
+              <View style={styles.themeOptionLeft}>
+                <Ionicons name="sunny" size={24} color="#f39c12" />
+                <View style={styles.themeOptionInfo}>
+                  <Text style={styles.themeOptionTitle}>Light Mode</Text>
+                  <Text style={styles.themeOptionDesc}>Always light theme</Text>
+                </View>
+              </View>
+              {themeMode === 'light' && <Ionicons name="checkmark-circle" size={24} color="#27ae60" />}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.themeOption, themeMode === 'dark' && styles.themeOptionActive]}
+              onPress={() => { setThemePreference('dark'); setShowThemeModal(false); }}
+            >
+              <View style={styles.themeOptionLeft}>
+                <Ionicons name="moon" size={24} color="#2c3e50" />
+                <View style={styles.themeOptionInfo}>
+                  <Text style={styles.themeOptionTitle}>Dark Mode</Text>
+                  <Text style={styles.themeOptionDesc}>Always dark theme</Text>
+                </View>
+              </View>
+              {themeMode === 'dark' && <Ionicons name="checkmark-circle" size={24} color="#27ae60" />}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowThemeModal(false)}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Links</Text>
@@ -555,6 +703,118 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 10,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ecf0f1',
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#2c3e50',
+  },
+  settingValue: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 2,
+  },
+  settingRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  themeBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  themeBadgeText: {
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 30,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 25,
+    width: '100%',
+    maxWidth: 350,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  themeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 10,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  themeOptionActive: {
+    borderColor: '#3498db',
+    backgroundColor: '#e8f4fd',
+  },
+  themeOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  themeOptionInfo: {
+    marginLeft: 15,
+  },
+  themeOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  themeOptionDesc: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 2,
+  },
+  modalCancelBtn: {
+    marginTop: 15,
+    padding: 15,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontWeight: '500',
   },
   footer: {
     alignItems: 'center',
