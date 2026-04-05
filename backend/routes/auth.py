@@ -112,7 +112,7 @@ def refresh():
 @jwt_required()
 def get_profile():
     current_user_id = get_jwt_identity()
-    user = User.query.get(int(current_user_id))
+    user = db.session.get(User, int(current_user_id))
     
     if not user:
         return jsonify({'error': 'User not found'}), 404
